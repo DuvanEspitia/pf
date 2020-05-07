@@ -16,6 +16,7 @@ import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
 import com.jme3.light.AmbientLight;
+import com.jme3.light.PointLight;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
@@ -38,17 +39,21 @@ public class Main extends SimpleApplication implements ActionListener{
     }
 
     boolean leftClick;
-    boolean Avanzar;
-    boolean Derecha;
-    boolean Izquierda;
-    boolean Atras;
+    boolean Avanzar = false;
+    boolean Derecha= false;
+    boolean Izquierda= false;
+    boolean Atras= false;
+    boolean shift = false;
     Node ninja;
     float angle = 90;
     Quaternion q = new Quaternion();
     AnimChannel channel = new AnimChannel();
     AnimControl control = new AnimControl();
     ChaseCamera chaseCam;
-     Vector3f walkDirection = new Vector3f();
+    Vector3f walkDirection = new Vector3f();
+    CharacterControl personaje;
+    private float airTime=0;
+    PointLight lamp;
     @Override
     public void simpleInitApp() {
         /// cargar el mapa ///
@@ -76,22 +81,23 @@ public class Main extends SimpleApplication implements ActionListener{
         bulletAppState.getPhysicsSpace().add(suelos);
         
          ////// importar personaje ////////
-        ninja = (Node) assetManager.loadModel("/Models/ninja/Ninja.mesh.j3o");
+        ninja = (Node) assetManager.loadModel("Models/ogro/Sinbad.mesh.j3o");
         rootNode.attachChild(ninja);
-        ninja.setLocalTranslation(new Vector3f(20f,15f,-15f));
-        CapsuleCollisionShape p = new CapsuleCollisionShape(3f,4f);
-        RigidBodyControl personaje = new  RigidBodyControl(p);
-        //CharacterControl personaje = new  CharacterControl(p,1);
-        personaje.setMass(1);
+        ninja.setLocalTranslation(new Vector3f(20f,100f,-15f));
+        CapsuleCollisionShape p = new CapsuleCollisionShape(4f,5f);
+        //RigidBodyControl personaje = new  RigidBodyControl(p);
+        personaje = new  CharacterControl(p,1);
+        //personaje.setMass(1);
+        
         ninja.addControl(personaje);
         bulletAppState.getPhysicsSpace().add(personaje);
+        personaje.setGravity(new Vector3f(0f, -10f, 0f));
+        //personaje.setPhysicsLocation(new Vector3f(20f,100f,-15f));
         
-        ninja.setLocalScale((float) 0.1);
+        
         
         setupChaseCamera();
-        
-        //////// gravedad /////////////
-        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0f, -10f, 0f));
+
         
         //// keys ////
         setUpKeys();
@@ -100,39 +106,80 @@ public class Main extends SimpleApplication implements ActionListener{
         control = ninja.getControl(AnimControl.class);
         channel = control.createChannel();
 
+        
+        //////// gravedad /////////////
+        bulletAppState.getPhysicsSpace().setGravity(new Vector3f(0f, -10f, 0f));
+        
+        /////// lámpara ////////////////
+        lamp = new PointLight();
+        lamp.setRadius(30f);
+        lamp.setColor(ColorRGBA.Blue);
+        rootNode.addLight(lamp);
     }
 
     @Override
     public void simpleUpdate(float tpf) {
         //actualizarpersonaje();
-        cambiarMovilidadCamara();
-         
-        float anguloRadianes = FastMath.DEG_TO_RAD * angle;
-
+       cambiarMovilidadCamara();
+       Vector3f camDir = cam.getDirection().clone().multLocal(0.4f);
+       Vector3f camLeft = cam.getLeft().clone().multLocal(0.4f);
+       camDir.y = 0;
+       camLeft.y = 0;
+       walkDirection.set(0, 0, 0);
+       
+        //float anguloRadianes = FastMath.DEG_TO_RAD * angle;
 
         if (Avanzar) 
         {
-             ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 3, new Vector3f(0, 1, 0)));
+             walkDirection.addLocal(camDir);
+            // ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 3, new Vector3f(0, 1, 0)));
              
         }
 
         if (Derecha) 
         {
-             ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 2, new Vector3f(0, 1, 0)));
+              walkDirection.addLocal(camLeft.negate());
+             //ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 2, new Vector3f(0, 1, 0)));
             
 
         }
         if (Izquierda) 
         {
-           ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 0, new Vector3f(0, 1, 0)));
+             walkDirection.addLocal(camLeft);
+           //ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes * 0, new Vector3f(0, 1, 0)));
             
         }
         if (Atras) 
         {
-            ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes, new Vector3f(0, 1, 0)));
-            //angle = angle*2;
+            walkDirection.addLocal(camDir.negate());
+            //ninja.setLocalRotation(q.fromAngleAxis(anguloRadianes, new Vector3f(0, 1, 0)));
+            
         }
-
+        if (!personaje.onGround()) {
+            airTime = airTime + tpf;
+        } else {
+            airTime = 0;
+        }
+        if (walkDirection.length() == 0) {
+            if (!"stand".equals(channel.getAnimationName())) {
+                channel.setAnim("IdleTop", 1f);
+            }
+        } else {
+            personaje.setViewDirection(walkDirection);
+            if (airTime > .3f) {
+                if (!"stand".equals(channel.getAnimationName())) {
+                    channel.setAnim("IdleTop");
+                }
+            } else if (!"RunTop".equals(channel.getAnimationName())) {
+                channel.setAnim("RunTop", 0.7f);
+            }
+        }
+        
+       personaje.setWalkDirection(walkDirection);
+       
+       //// Movimiento de lámpara /////////
+       lamp.setPosition(new Vector3f(ninja.getLocalTranslation().x+0.5f,2f,ninja.getLocalTranslation().z+1f));
+       
     }
 
     @Override
@@ -142,61 +189,73 @@ public class Main extends SimpleApplication implements ActionListener{
 
     @Override
     public void onAction(String name, boolean isPressed, float tpf) {
-       Vector3f camDir = cam.getDirection().clone().multLocal(0.4f);
-       Vector3f camLeft = cam.getLeft().clone().multLocal(0.4f);
-       camDir.y = 0;
-       camLeft.y = 0;
-       walkDirection.set(0, 0, 0);
-
-
-        if (name.equals("W")) {
-            Avanzar = true;
-            channel.setAnim("Walk");
-             walkDirection.addLocal(camDir);
+      
+        if (name.equals("SHIFT")) {
+            shift = isPressed;
+           
             System.out.println("presionado");
 
         } else {
-            Avanzar = false;
+            //Avanzar = false;
+            
+        }
+
+        if (name.equals("W")) {
+            Avanzar = isPressed;
+           
+            System.out.println("presionado");
+
+        } else {
+            //Avanzar = false;
             
         }
 
         if (name.equals("A")) {
-            Izquierda = true;
+            Izquierda = isPressed ;
             System.out.println("presionado");
-            walkDirection.addLocal(camLeft);
-            channel.setAnim("Walk");
+            //channel.setAnim("RunTop");
 
         } else {
-            Izquierda = false;
+            //Izquierda = false;
             
         }
 
         if (name.equals("S")) {
-            Atras = true;
+            Atras = isPressed;
             System.out.println("presionado");
-            walkDirection.addLocal(camDir.negate());
-            channel.setAnim("Walk");
+            //channel.setAnim("RunTop");
         } else {
-            Atras = false;
+            //Atras = false;
             
         }
 
         if (name.equals("D")) {
-            Derecha = true;
+            Derecha = isPressed;
             System.out.println("presionado");
-             walkDirection.addLocal(camLeft.negate());
-             channel.setAnim("Walk");
+           //channel.setAnim("RunTop");
 
         } else {
-            Derecha = false;
+            //Derecha = false;
             
         }
+        
+
+        
+//        if(shift&&Derecha)
+//        {
+//             channel.setAnim("RunBase");
+//        }else
+//        {
+//        if(Avanzar)
+//        {
+//             channel.setAnim("RunTop");
+//        }
+//        }
 
     }
     
-    private void setUpKeys() {
-        inputManager.addMapping("click", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        inputManager.addListener(this, "click");
+    private void setUpKeys() 
+    {
 
         inputManager.addMapping("W", new KeyTrigger(KeyInput.KEY_W));
         inputManager.addListener(this, "W");
@@ -210,6 +269,8 @@ public class Main extends SimpleApplication implements ActionListener{
         inputManager.addMapping("S", new KeyTrigger(KeyInput.KEY_S));
         inputManager.addListener(this, "S");
 
+        inputManager.addMapping("SHIFT", new KeyTrigger(KeyInput.KEY_LSHIFT));
+        inputManager.addListener(this, "SHIFT");
     }
     
         private void cambiarMovilidadCamara() {
@@ -218,7 +279,7 @@ public class Main extends SimpleApplication implements ActionListener{
         flyCam.setDragToRotate(true);
         inputManager.addMapping("FLYCAM_RotateDrag", new MouseButtonTrigger(MouseInput.BUTTON_MIDDLE));
         inputManager.addListener(flyCam, "FLYCAM_RotateDrag");
-        //cont++;
+        
     }
         
         private void setupChaseCamera() {
