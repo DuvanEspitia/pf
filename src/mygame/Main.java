@@ -21,9 +21,11 @@ import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
+import com.jme3.niftygui.NiftyJmeDisplay;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
+import de.lessvoid.nifty.Nifty;
 
 /**
  * This is the Main Class of your Game. You should only do initialization here.
@@ -55,7 +57,25 @@ public class Main extends SimpleApplication implements ActionListener{
     private float airTime=0;
     PointLight lamp;
     @Override
-    public void simpleInitApp() {
+    public void simpleInitApp() 
+    {
+        NiftyJmeDisplay niftyDisplay = NiftyJmeDisplay.newNiftyJmeDisplay(
+                assetManager, inputManager, audioRenderer, guiViewPort);
+        /**
+         * Create a new NiftyGUI object
+         */
+        Nifty nifty = niftyDisplay.getNifty();
+        /**
+         * Read your XML and initialize your custom ScreenController
+         */
+        nifty.fromXml("Interface/screen.xml", "start");
+        // nifty.fromXml("Interface/helloworld.xml", "start", new MySettingsScreen(data));
+        // attach the Nifty display to the gui view port as a processor
+        guiViewPort.addProcessor(niftyDisplay);
+        // disable the fly cam
+        flyCam.setDragToRotate(true); 
+        
+        
         /// cargar el mapa ///
         Spatial teapot = assetManager.loadModel("Scenes/mapa.j3o");
         rootNode.attachChild(teapot);
@@ -74,6 +94,7 @@ public class Main extends SimpleApplication implements ActionListener{
         BulletAppState bulletAppState = new BulletAppState();
         stateManager.attach(bulletAppState);
         
+        
         ////////// malla y colisiones del escenario ////////////////
         CollisionShape suelo = CollisionShapeFactory.createMeshShape(teapot);
         RigidBodyControl suelos = new RigidBodyControl(suelo, 0);
@@ -84,7 +105,7 @@ public class Main extends SimpleApplication implements ActionListener{
         ninja = (Node) assetManager.loadModel("Models/ogro/Sinbad.mesh.j3o");
         rootNode.attachChild(ninja);
         ninja.setLocalTranslation(new Vector3f(20f,100f,-15f));
-        CapsuleCollisionShape p = new CapsuleCollisionShape(4f,5f);
+        CapsuleCollisionShape p = new CapsuleCollisionShape(3f,4f);
         //RigidBodyControl personaje = new  RigidBodyControl(p);
         personaje = new  CharacterControl(p,1);
         //personaje.setMass(1);
@@ -161,14 +182,14 @@ public class Main extends SimpleApplication implements ActionListener{
             airTime = 0;
         }
         if (walkDirection.length() == 0) {
-            if (!"stand".equals(channel.getAnimationName())) {
+            if (!"Stand".equals(channel.getAnimationName())) {
                 channel.setAnim("IdleTop", 1f);
             }
         } else {
             personaje.setViewDirection(walkDirection);
             if (airTime > .3f) {
-                if (!"stand".equals(channel.getAnimationName())) {
-                    channel.setAnim("IdleTop");
+                if (!"JumpLoop".equals(channel.getAnimationName())) {
+                    channel.setAnim("JumpLoop");
                 }
             } else if (!"RunTop".equals(channel.getAnimationName())) {
                 channel.setAnim("RunTop", 0.7f);
@@ -178,7 +199,7 @@ public class Main extends SimpleApplication implements ActionListener{
        personaje.setWalkDirection(walkDirection);
        
        //// Movimiento de lámpara /////////
-       lamp.setPosition(new Vector3f(ninja.getLocalTranslation().x+0.5f,2f,ninja.getLocalTranslation().z+1f));
+       lamp.setPosition(new Vector3f(ninja.getLocalTranslation().x+0.5f,ninja.getLocalTranslation().y-0.5f,ninja.getLocalTranslation().z+1f));
        
     }
 
