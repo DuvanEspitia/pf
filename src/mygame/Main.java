@@ -33,12 +33,16 @@ import de.lessvoid.nifty.Nifty;
  * @author normenhansen
  */
 public class Main extends SimpleApplication implements ActionListener{
+    
+    
 
     public static void main(String[] args) {
         Main app = new Main();
         app.setShowSettings(false);
         app.start();
     }
+    
+    
 
     boolean leftClick;
     boolean Avanzar = false;
@@ -56,6 +60,9 @@ public class Main extends SimpleApplication implements ActionListener{
     CharacterControl personaje;
     private float airTime=0;
     PointLight lamp;
+    float vel = 0.4f;
+    
+    
     @Override
     public void simpleInitApp() 
     {
@@ -68,12 +75,14 @@ public class Main extends SimpleApplication implements ActionListener{
         /**
          * Read your XML and initialize your custom ScreenController
          */
-        nifty.fromXml("Interface/screen.xml", "start");
-        // nifty.fromXml("Interface/helloworld.xml", "start", new MySettingsScreen(data));
+        //nifty.fromXml("Interface/screen.xml", "start");
+        nifty.fromXml("Interface/screen.xml", "start", new MyStartScreen(nifty,this));
         // attach the Nifty display to the gui view port as a processor
         guiViewPort.addProcessor(niftyDisplay);
         // disable the fly cam
         flyCam.setDragToRotate(true); 
+        //nifty.addXml("Interface/mysecondscreen.xml");
+        
         
         
         /// cargar el mapa ///
@@ -142,14 +151,21 @@ public class Main extends SimpleApplication implements ActionListener{
     public void simpleUpdate(float tpf) {
         //actualizarpersonaje();
        cambiarMovilidadCamara();
-       Vector3f camDir = cam.getDirection().clone().multLocal(0.4f);
-       Vector3f camLeft = cam.getLeft().clone().multLocal(0.4f);
+       Vector3f camDir = cam.getDirection().clone().multLocal(vel);
+       Vector3f camLeft = cam.getLeft().clone().multLocal(vel);
        camDir.y = 0;
        camLeft.y = 0;
        walkDirection.set(0, 0, 0);
        
         //float anguloRadianes = FastMath.DEG_TO_RAD * angle;
-
+        if(shift)
+        {
+           vel= 1f;
+        }else
+        {
+           vel = 0.4f;
+        }
+        
         if (Avanzar) 
         {
              walkDirection.addLocal(camDir);
@@ -182,7 +198,7 @@ public class Main extends SimpleApplication implements ActionListener{
             airTime = 0;
         }
         if (walkDirection.length() == 0) {
-            if (!"Stand".equals(channel.getAnimationName())) {
+            if (!"IdleTop".equals(channel.getAnimationName())) {
                 channel.setAnim("IdleTop", 1f);
             }
         } else {
@@ -191,8 +207,8 @@ public class Main extends SimpleApplication implements ActionListener{
                 if (!"JumpLoop".equals(channel.getAnimationName())) {
                     channel.setAnim("JumpLoop");
                 }
-            } else if (!"RunTop".equals(channel.getAnimationName())) {
-                channel.setAnim("RunTop", 0.7f);
+            } else if (!"RunBase".equals(channel.getAnimationName())) {
+                channel.setAnim("RunBase", 0.7f);
             }
         }
         
